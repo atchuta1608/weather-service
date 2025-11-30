@@ -1,0 +1,35 @@
+import request from 'supertest';
+import app from '../src/app';
+
+jest.mock('../src/services/nwsClient');
+const nwsClient = require('../src/services/nwsClient');
+
+describe('GET /forecast', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  test('returns 422 for invalid params', async () => {
+    const res = await request(app).get('/forecast?lat=abc&lon=def');
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBeDefined();
+  });
+
+  test('returns forecast and characterization', async () => {
+    nwsClient.getShortForecastForPoint.mockResolvedValue({
+      name: 'Today',
+      shortForecast: 'Partly Sunny',
+      temperature: 85,
+      isDaytime: true
+    });
+
+    const res = await request(app).get('/forecast?lat=39.7&lon=-97.0');
+    expect(res.status).toBe(200);
+    expect(res.body.shortForecast).toBe('Partly Sunny');
+    expect(res.body.characterization).toBe('hot');
+  });
+
+  test('returns 404 when no forecast available', async () => {
+    nwsClient.getShortForecastForPoint.mockResolvedValue(null);
+    const res = await request(app).get('/forecast?lat=39.7&lon=-97.0');
+    expect(res.status).toBe(404);
+  });
+});

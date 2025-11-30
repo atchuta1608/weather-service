@@ -1,0 +1,37 @@
+{
+  "name": "weather-service",
+  "version": "0.1.0",
+  "description": "Simple Express service returning short forecast and temperature characterization using NWS API",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "jest --coverage"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "1.4.0",
+    "axios-retry": "3.3.1",
+    "express": "4.18.2",
+    "pino": "8.18.0",
+    "zod": "3.23.2",
+    "uuid": "9.0.0",
+    "cors": "2.8.5"
+  },
+  "devDependencies": {
+    "jest": "29.6.1",
+    "ts-node-dev": "2.0.0",
+    "typescript": "5.2.2",
+    "ts-jest": "29.1.0",
+    "@types/jest": "29.5.3",
+    "@types/express": "4.17.17",
+    "@types/node": "20.5.1",
+    "@types/supertest": "2.0.12",
+    "@types/pino": "7.0.5",
+    "@types/cors": "2.8.12",
+    "@types/uuid": "9.0.2",
+    "supertest": "6.3.4"
+  }
+}
