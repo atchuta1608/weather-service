@@ -1,7 +1,7 @@
 import client from './httpClient';
-import pino from 'pino';
-
-const logger = pino();
+import axios from 'axios';
+import logger from '../logger';
+import HttpError from '../errors/HttpError';
 
 export interface ForecastPeriod {
   name?: string;
@@ -16,18 +16,71 @@ export async function getShortForecastForPoint(lat: number, lon: number): Promis
   try {
     const pointUrl = `https://api.weather.gov/points/${lat},${lon}`;
     logger.info({ url: pointUrl }, 'Requesting NWS point metadata');
-    const pointResp = await client.get(pointUrl);
+    let pointResp;
+    try {
+      pointResp = await client.get(pointUrl);
+    } catch (err: any) {
+      // Prefer explicit axios error checks
+      if (axios.isAxiosError(err)) {
+        const code = (err as any).code;
+        if (err.response?.status === 404) {
+          logger.warn({ lat, lon, status: 404 }, 'Coordinates not found in NWS database');
+          throw new HttpError(404, 'Location not found in National Weather Service database', { code, message: err.message });
+        }
+        if (err.response?.status === 400) {
+          logger.warn({ lat, lon, status: 400 }, 'Invalid coordinates for NWS');
+          throw new HttpError(400, 'Invalid coordinates provided to National Weather Service', { code, message: err.message });
+        }
+        if (code === 'ECONNABORTED') {
+          logger.error({ lat, lon }, 'NWS point endpoint timeout after retries');
+          throw new HttpError(504, 'National Weather Service gateway timeout', { code, message: err.message });
+        }
+        if (code === 'ENOTFOUND' || code === 'ECONNREFUSED' || code === 'EAI_AGAIN') {
+          logger.error({ lat, lon, code }, 'NWS point endpoint unreachable');
+          throw new HttpError(503, 'National Weather Service is unavailable', { code, message: err.message });
+        }
+        logger.error({ lat, lon, err: err.message }, 'NWS point endpoint error');
+        throw new HttpError(502, 'Failed to reach National Weather Service', { code, message: err.message });
+      }
+
+      // Non-axios errors
+      logger.error({ lat, lon, err: err?.message ?? String(err) }, 'NWS point endpoint non-axios error');
+      throw new HttpError(502, 'Failed to reach National Weather Service', { message: String(err) });
+    }
 
     const forecastUrl = pointResp.data?.properties?.forecast as string | undefined;
     if (!forecastUrl) {
-      logger.warn({ lat, lon }, 'No forecast URL in points response');
-      return null;
+      logger.warn({ lat, lon, status: 204 }, 'No forecast URL in points response');
+      throw new HttpError(204, 'No forecast data available');
     }
 
     logger.info({ url: forecastUrl }, 'Requesting NWS forecast');
-    const forecastResp = await client.get(forecastUrl);
+    let forecastResp;
+    try {
+      forecastResp = await client.get(forecastUrl);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const code = (err as any).code;
+        if (code === 'ECONNABORTED') {
+          logger.error({ forecastUrl }, 'NWS forecast endpoint timeout after retries');
+          throw new HttpError(504, 'National Weather Service gateway timeout', { code, message: err.message });
+        }
+        if (code === 'ENOTFOUND' || code === 'ECONNREFUSED' || code === 'EAI_AGAIN') {
+          logger.error({ forecastUrl, code }, 'NWS forecast endpoint unreachable');
+          throw new HttpError(503, 'National Weather Service is unavailable', { code, message: err.message });
+        }
+        logger.error({ forecastUrl, err: err.message }, 'NWS forecast endpoint error');
+        throw new HttpError(502, 'Failed to reach National Weather Service', { code, message: err.message });
+      }
+      logger.error({ forecastUrl, err: err?.message ?? String(err) }, 'NWS forecast non-axios error');
+      throw new HttpError(502, 'Failed to reach National Weather Service', { message: String(err) });
+    }
+
     const periods = forecastResp.data?.properties?.periods as ForecastPeriod[] | undefined;
-    if (!Array.isArray(periods) || periods.length === 0) return null;
+    if (!Array.isArray(periods) || periods.length === 0) {
+      logger.warn({ lat, lon, status: 204 }, 'No forecast periods in response');
+      throw new HttpError(204, 'No forecast periods available');
+    }
 
     // Prefer the period that contains the current time. If none found,
     // choose a period matching the current day/night, else fallback to the first period.
@@ -48,8 +101,13 @@ export async function getShortForecastForPoint(lat: number, lon: number): Promis
     const matchedPeriod = periods.find(p => p.isDaytime === isCurrentlyDaytime) || periods[0];
 
     return matchedPeriod || null;
-  } catch (err) {
-    logger.error({ err, lat, lon }, 'Error fetching NWS data');
-    throw err;
+  } catch (err: any) {
+    // Re-throw HttpError as-is, wrap others with details
+    if (err instanceof HttpError) {
+      throw err;
+    }
+    const details = { message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined };
+    logger.error({ err: details, lat, lon }, 'Unexpected error fetching NWS data');
+    throw new HttpError(500, 'Unexpected error fetching forecast data', details);
   }
 }

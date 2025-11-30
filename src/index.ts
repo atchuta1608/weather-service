@@ -1,7 +1,5 @@
 import app from './app';
-import pino from 'pino';
-
-const logger = pino();
+import logger from './logger';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 

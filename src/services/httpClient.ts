@@ -1,8 +1,6 @@
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
-import pino from 'pino';
-
-const logger = pino();
+import logger from '../logger';
 
 const client = axios.create({ timeout: 15000, headers: { 'User-Agent': 'weather-service-demo (email@example.com)' } });
 axiosRetry(client, { 

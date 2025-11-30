@@ -1,8 +1,6 @@
 const axios = require('axios');
 const axiosRetry = require('axios-retry');
-const pino = require('pino');
-
-const logger = pino();
+const logger = require('../logger');
 
 const client = axios.create({ timeout: 7000, headers: { 'User-Agent': 'weather-service-demo (email@example.com)' } });
 axiosRetry(client, { retries: 3, retryDelay: axiosRetry.exponentialDelay, retryCondition: axiosRetry.isNetworkOrIdempotentRequestError });
