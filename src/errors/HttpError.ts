@@ -7,5 +7,7 @@ export default class HttpError extends Error {
     this.status = status;
     this.details = details;
     this.name = 'HttpError';
+    // Correctly set the prototype chain for Error subclassing
+    Object.setPrototypeOf(this, HttpError.prototype);
   }
 }

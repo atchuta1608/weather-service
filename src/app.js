@@ -1,7 +1,6 @@
 const express = require('express');
 const logger = require('./logger');
 const cors = require('cors');
-const logger = pino();
 const { coordsSchema } = require('./validators/coords');
 const nwsClient = require('./services/nwsClient');
 const { classifyTemp } = require('./utils/tempClassifier');

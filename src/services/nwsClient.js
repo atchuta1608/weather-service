@@ -11,7 +11,7 @@ async function getShortForecastForPoint(lat, lon) {
     try {
       pointResp = await httpClient.get(pointUrl);
     } catch (err) {
-      if (axios.isAxiosError && axios.isAxiosError(err)) {
+      if (axios.isAxiosError(err)) {
         const code = err.code;
         if (err.response?.status === 404) {
           logger.warn({ lat, lon, status: 404 }, 'Coordinates not found in NWS database');
@@ -47,7 +47,7 @@ async function getShortForecastForPoint(lat, lon) {
     try {
       forecastResp = await httpClient.get(forecastUrl);
     } catch (err) {
-      if (axios.isAxiosError && axios.isAxiosError(err)) {
+      if (axios.isAxiosError(err)) {
         const code = err.code;
         if (code === 'ECONNABORTED') {
           logger.error({ forecastUrl }, 'NWS forecast endpoint timeout after retries');
